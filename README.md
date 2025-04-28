@@ -1,5 +1,5 @@
 # Sonar-3D-15-api-example
-API example for reading date from the Water Linked Sonar 3D-15
+API example for reading data from the Water Linked Sonar 3D-15
 
 # Setup
 In your python environment you need to install the requirements.txt 
@@ -13,6 +13,12 @@ RUN:
 ```consol
 python read_api_sonar_3d_15_data.py
 ```
+
+Optionally you can add the a `--save` argument to save the data to file:
+- RangeImage to 3d voxels in the `.xzy` format (supported by for example MeshLab) in the Sonars frame of reference
+- BitmapImage to grayscale image in the `.pgm` format (supported by Photoshop, GIMP etc)
+
+The save function is provided as an example of how to process the data from the Sonar, please modify into your needs.
 
 # Alternative 2
 
