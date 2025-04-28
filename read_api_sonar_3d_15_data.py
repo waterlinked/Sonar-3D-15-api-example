@@ -21,6 +21,7 @@ USAGE:
 import socket
 import struct
 import zlib
+import math
 
 # Generated Protobuf definitions for the Sonar 3D-15 protocol
 from sonar_3d_15_protocol_pb2 import (
@@ -33,9 +34,8 @@ from sonar_3d_15_protocol_pb2 import (
 MULTICAST_GROUP = '224.0.0.96'
 PORT = 4747
 
-# Adjust this if you know your specific Sonar IP.
-# The script will discard packets from any other source.
-SONAR_IP = "10.1.2.43"  # <-- Change this to match your Sonar 3D-15's IP
+# Listen to all IPs by default, or set to a specific IP.
+SONAR_IP = ""
 
 # The maximum possible packet size for Sonar 3D-15 data
 BUFFER_SIZE = 65535
@@ -121,7 +121,78 @@ def decode_protobuf_packet(payload: bytes):
     return ("Unknown", any_msg)
 
 
-def receive_multicast():
+def rangeImageToXYZ(ri):
+    """
+    Convert RangeImage data to a list of voxels with X, Y, Z coordinates.
+    """
+    max_pixel_x = ri.width - 1
+    max_pixel_y = ri.height - 1
+    fov_h = math.radians(ri.fov_horizontal)
+    fov_v = math.radians(ri.fov_vertical)
+
+    voxels = []
+
+    for pixel_x in range(ri.width):
+        for pixel_y in range(ri.height):
+            pixel_value = ri.image_pixel_data[pixel_y * ri.width + pixel_x]
+            if pixel_value == 0:
+                # No data for this pixel
+                continue
+
+            yaw_rad = (pixel_x / max_pixel_x) * fov_h - fov_h / 2
+            pitch_rad = (pixel_y / max_pixel_y) * fov_v - fov_v / 2
+            distance_meters = pixel_value * ri.image_pixel_scale
+
+            x = distance_meters * math.cos(pitch_rad) * math.cos(yaw_rad)
+            y = distance_meters * math.cos(pitch_rad) * math.sin(yaw_rad)
+            z = -distance_meters * math.sin(pitch_rad)
+
+            voxel = {
+                "yaw": yaw_rad,  # yaw in radians
+                "pitch": pitch_rad, # pitch in radians
+                "distance": distance_meters, # distance in meters
+                "x": x, # x coordinate in meters
+                "y": y, # y coordinate in meters
+                "z": z # z coordinate in meters
+            }
+
+            voxels.append(voxel)
+    return voxels
+
+
+def saveXYZ(voxels, filename):
+    """
+    Save the list of voxels to a file in XYZ format.
+    Each voxel is represented as a line with x, y, z coordinates.
+    """
+    with open(filename, 'w') as f:
+        for voxel in voxels:
+            x = voxel['x']
+            y = voxel['y']
+            z = voxel['z']
+            f.write(f"{x} {y} {z}\n")
+    print(f"Saved {len(voxels)} voxels to {filename}")
+
+def saveImage(bmpImg):
+    """
+    Save the BitmapImageGreyscale8 data to a file.
+    The data is saved as a grayscale image in PGM format.
+    """
+    filename = f"sonar_image_{bmpImg.header.sequence_id}.pgm"
+    with open(filename, 'wb') as f:
+        f.write(b'P2\n') # PGM format identifier
+        f.write(f"{bmpImg.width} {bmpImg.height}\n".encode()) # Write the width and height
+        f.write(b'255\n')  # Max pixel value for PGM
+        # Write pixel data
+        for y in range(bmpImg.height-1, 0, -1): # Flip the image vertically
+            for x in range(bmpImg.width):
+                pixel_value = bmpImg.image_pixel_data[y * bmpImg.width + x]
+                f.write(f"{pixel_value} ".encode())
+            f.write(b'\n')
+    print(f"Saved BitmapImage to {filename}")
+
+
+def receive_multicast(save: bool = False):
     """
     Listen for Sonar 3D-15 UDP multicast packets on a specific port.
     - Filters packets based on the known Sonar IP address.
@@ -147,8 +218,8 @@ def receive_multicast():
         while True:
             data, addr = sock.recvfrom(BUFFER_SIZE)
 
-            # If this doesn't match the known Sonar IP, skip it.
-            if addr[0] != SONAR_IP:
+            # If SONAR_IP is configured, and this doesn't match the known Sonar IP, skip it.
+            if SONAR_IP != "" and addr[0] != SONAR_IP:
                 continue
 
             # Parse the RIP1 framing to get the Protobuf payload
@@ -169,29 +240,27 @@ def receive_multicast():
                 # Print out main fields
                 print("  BitmapImageGreyscale8 data:")
                 print(f"    Type: {msg_obj.type}")
-                print(
-                    f"    Width x Height: {msg_obj.width} x {msg_obj.height}")
-                print(f"    Horizontal FoV: {msg_obj.horizontal_fov}")
-                print(f"    Vertical FoV:   {msg_obj.vertical_fov}")
+                print(f"    Width x Height:  {msg_obj.width} x {msg_obj.height}")
+                print(f"    Horizontal FoV:  {msg_obj.fov_horizontal}")
+                print(f"    Vertical FoV:    {msg_obj.fov_vertical}")
 
                 # Header info
                 seq_id = msg_obj.header.sequence_id
                 dt = msg_obj.header.timestamp.ToDatetime()
-                print(f"    Sequence ID:    {seq_id}")
+                print(f"    Sequence ID:     {seq_id}")
                 print(f"    Timestamp (UTC): {dt.isoformat()}")
 
                 # Data
-                # print(f"    Data:                {msg_obj.image_pixel_data}")
+                if save:
+                    saveImage(msg_obj)
 
             elif msg_type == "RangeImage":
                 # Print out main fields
                 print("  RangeImage data:")
-                print(
-                    f"    n_pixels_horizontal: {msg_obj.n_pixels_horizontal}")
-                print(f"    n_pixels_vertical:   {msg_obj.n_pixels_vertical}")
-                print(f"    fov_horizontal:      {msg_obj.fov_horizontal}")
-                print(f"    fov_vertical:        {msg_obj.fov_vertical}")
-                print(f"    image_pixel_scale:   {msg_obj.image_pixel_scale}")
+                print(f"    Width x Height:    {msg_obj.width} x {msg_obj.height}")
+                print(f"    Horizontal FoV:    {msg_obj.fov_horizontal}")
+                print(f"    Vertical FoV:      {msg_obj.fov_vertical}")
+                print(f"    image_pixel_scale: {msg_obj.image_pixel_scale}")
 
                 # Header info
                 seq_id = msg_obj.header.sequence_id
@@ -199,8 +268,13 @@ def receive_multicast():
                 print(f"    Sequence ID:         {seq_id}")
                 print(f"    Timestamp (UTC):     {dt.isoformat()}")
 
-                # Data
-                # print(f"    Data:                {msg_obj.image_pixel_data}")
+                # Convert to XYZ coordinates
+                voxels = rangeImageToXYZ(msg_obj)
+                print(f"    Voxel count:         {len(voxels)}")
+                if save:
+                    # Save to XYZ file
+                    filename = f"sonar_voxels_{seq_id}.xyz"
+                    saveXYZ(voxels, filename)
 
             else:
                 # We don't have a custom handler for other message types
@@ -216,4 +290,22 @@ def receive_multicast():
 
 
 if __name__ == "__main__":
-    receive_multicast()
+    import argparse
+    parser = argparse.ArgumentParser(
+        description="Listen for Sonar 3D-15 data over multicast.")
+    parser.add_argument(
+        "--save",
+        action="store_true",
+        help="Save RangeImage data to XYZ file format and BitmapImage to PGM file format."
+    )
+    parser.add_argument(
+        "--ip",
+        type=str,
+        default="",
+        help="Limit to packets from this IP address (default: all)."
+    )
+    # Parse arguments
+    args = parser.parse_args()
+    if args.ip:
+        SONAR_IP = args.ip
+    receive_multicast(args.save)
