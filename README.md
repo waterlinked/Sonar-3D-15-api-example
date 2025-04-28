@@ -7,7 +7,7 @@ In your python environment you need to install the requirements.txt
 pip install -r requirements.txt
 ```
 !!! Note
-    It is important to use the 3.12.14 protobuf version in the requirements file. If you already have protbuf installed you need to downgrade or look at alternative 2.
+    It is important to use the 4.24.2 protobuf version in the requirements file. If you already have protbuf installed you need to downgrade or look at alternative 2.
 
 RUN:
 ```consol
