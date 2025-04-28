@@ -1,5 +1,5 @@
 # Sonar-3D-15-api-example
-API example for reading data from the Water Linked Sonar 3D-15
+API example for reading data from the Water Linked Sonar 3D-15 with Python
 
 # Setup
 In your python environment you need to install the requirements.txt 
