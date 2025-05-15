@@ -6,3 +6,5 @@ protoc/
 
 *.pgm
 *.xyz
+
+*.sonar
