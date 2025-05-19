@@ -96,13 +96,11 @@ if __name__ == "__main__":
 
     print("Listening for multicast packets...")
     # Make filename from timestamp as yyyy-mm-dd-hh-mm-ss if not provided
-    filename = args.filename
+    filename = args.file
     if filename == "":
         from datetime import datetime
         now = datetime.now()
         ts = now.strftime("%Y-%m-%d-%H-%M-%S")
         filename = f"sonar-capture-{ts}.sonar"
-
-    print(f"Saving data to: {args.filename}")
 
     receive_multicast(filename)
