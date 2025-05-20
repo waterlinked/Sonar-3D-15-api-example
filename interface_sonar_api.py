@@ -115,7 +115,7 @@ def describe_response(endpoint: str, response: requests.models.Response) -> None
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(
-        description="Listen for Sonar 3D-15 data over multicast.")
+        description="Interfacing the Sonar 3D-15 integration API.")
     parser.add_argument(
         "--ip",
         type=str,
