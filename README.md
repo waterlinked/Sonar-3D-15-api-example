@@ -30,6 +30,15 @@ Optionally you can add the a `--save` argument to save the data to file:
 - BitmapImage to grayscale image in the `.pgm` format (supported by Photoshop, GIMP etc)
 
 The save function is provided as an example of how to process the data from the Sonar, please modify as you see fit.
+_____
+Interface the sonar through the API (v1.4.0 or newer):
+
+```consol
+python interface_sonar_api.py --ip <SONAR IP>
+```
+Prints information about the Sonar (version, temperature...). Optionally you can control the soar with the arguments:
+- `--speed`: Change the speed of sound used by the sonar (takes ~20s to complete)
+- `--acoustics`: Enable or disable the acoustics on the sonar (choices [enable, disable]) 
 
 # Advanced
 
@@ -39,4 +48,3 @@ If you are already using another version of protobuf this is no problem, as you 
 ```consol
 protoc --python_out=. sonar-3d-15-protocol.proto  
 ```
-
