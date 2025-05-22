@@ -188,7 +188,7 @@ def handle_packet(data: bytes, save: bool = False, save_path: str = ""):
     # Decode the Protobuf message
     result = decode_protobuf_packet(payload)
     if not result:
-        print("Unknown or invalid Protobuf message received.")
+        # Did not get a valid message
         return
 
     msg_type, msg_obj = result
