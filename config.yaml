@@ -1,0 +1,8 @@
+waterlinked_3d_sonar_driver:
+  ros__parameters:
+    sonar_ip: "192.168.1.100"           # IP address of the sonar device
+    speed_of_sound: 1480                # Speed of sound in water (m/s)
+    acoustics_enabled: false            # Enable or disable acoustics (true/false)
+    multicast_group: "224.0.0.96"      # Multicast group address
+    multicast_port: 4747                # UDP port for multicast
+    filter_ip: ""                      # Only accept packets from this IP (empty for all)
