@@ -14,4 +14,13 @@ install(DIRECTORY proto/
   DESTINATION share/${PROJECT_NAME}/proto
 )
 
+install(PROGRAMS
+  scripts/sonar_3d_15_node.py
+  scripts/inspect_sonar_data.py
+  scripts/interface_sonar_api.py
+  scripts/save_sonar_data.py
+  scripts/sonar_3d_15_protocol_pb2.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 ament_package()

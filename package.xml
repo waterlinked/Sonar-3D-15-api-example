@@ -10,6 +10,9 @@
   <depend>rclcpp</depend>
   <depend>sensor_msgs</depend>
   <depend>std_msgs</depend>
+  <exec_depend>python3</exec_depend>
+  <!-- <exec_depend>numpy</exec_depend> -->
+  <exec_depend>protobuf</exec_depend>
 
   <export>
     <build_type>ament_cmake</build_type>
