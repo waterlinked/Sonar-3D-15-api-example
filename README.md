@@ -1,6 +1,6 @@
-# Water Linked 3D Sonar Driver ROS2 Package
+# ROS2 Integration for Water Linked 3D Sonar Driver
 
-This package provides a ROS2 interface for the Water Linked Sonar 3D-15.
+This section describes the ROS2 package for the Water Linked Sonar 3D-15.
 
 ## Build Instructions
 
@@ -23,6 +23,11 @@ This package provides a ROS2 interface for the Water Linked Sonar 3D-15.
 - Add launch files and configuration as needed
 
 -----
+
+# Original Python API Example (Legacy)
+
+<!-- ORIGINAL README CONTENT BELOW -->
+
 # Sonar-3D-15-api-example
 
 API example for reading and decoding the data from the Water Linked Sonar 3D-15 with Python
