@@ -19,8 +19,7 @@ This section describes the ROS2 package for the Water Linked Sonar 3D-15.
 - `scripts/`: Python scripts for interacting with the sonar
 
 ## TODO
-- Implement ROS2 nodes for publishing sonar data
-- Add launch files and configuration as needed
+- Add launch files
 
 -----
 
