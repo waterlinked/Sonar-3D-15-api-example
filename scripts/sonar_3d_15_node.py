@@ -1,6 +1,19 @@
 #!/usr/bin/env python3
 import rclpy
 from rclpy.node import Node
+import threading
+import socket
+import struct
+try:
+    from rcl_interfaces.msg import SetParametersResult
+except ImportError:
+    # Fallback for environments where rcl_interfaces is not available
+    class SetParametersResult:
+        def __init__(self, successful=True):
+            self.successful = successful
+
+# Import the API functions for sonar configuration
+from scripts.interface_sonar_api import set_speed, set_acoustics
 
 class Sonar3D15Node(Node):
     def __init__(self):
@@ -17,7 +30,87 @@ class Sonar3D15Node(Node):
             ]
         )
         self.get_logger().info('Sonar 3D-15 ROS2 node started.')
-        # TODO: Add publishers, subscribers, timers, and main logic
+        self.sonar_ip = self.get_parameter('sonar_ip').get_parameter_value().string_value
+        self.speed_of_sound = self.get_parameter('speed_of_sound').get_parameter_value().integer_value
+        self.acoustics_enabled = self.get_parameter('acoustics_enabled').get_parameter_value().bool_value
+        self.multicast_group = self.get_parameter('multicast_group').get_parameter_value().string_value
+        self.multicast_port = self.get_parameter('multicast_port').get_parameter_value().integer_value
+        self.filter_ip = self.get_parameter('filter_ip').get_parameter_value().string_value
+
+        # Register parameter change callback
+        self.add_on_set_parameters_callback(self.parameter_callback)
+
+        # Initial configuration
+        self.configure_sonar()
+
+        # Start UDP listening thread
+        self.udp_thread = threading.Thread(target=self.udp_listener, daemon=True)
+        self.udp_thread.start()
+
+    def configure_sonar(self):
+        if self.sonar_ip:
+            try:
+                # Use the imported API functions
+                resp_speed = set_speed(self.sonar_ip, self.speed_of_sound)
+                self.get_logger().info(f"Set speed_of_sound: {resp_speed.status_code}")
+                resp_acoustics = set_acoustics(self.sonar_ip, self.acoustics_enabled)
+                self.get_logger().info(f"Set acoustics_enabled: {resp_acoustics.status_code}")
+            except Exception as e:
+                self.get_logger().error(f"Failed to configure sonar: {e}")
+
+    def parameter_callback(self, params):
+        success = True
+        for param in params:
+            if param.name == 'speed_of_sound':
+                self.speed_of_sound = param.value
+                try:
+                    resp = set_speed(self.sonar_ip, self.speed_of_sound)
+                    self.get_logger().info(f"Updated speed_of_sound: {resp.status_code}")
+                except Exception as e:
+                    self.get_logger().error(f"Failed to update speed_of_sound: {e}")
+                    success = False
+            elif param.name == 'acoustics_enabled':
+                self.acoustics_enabled = param.value
+                try:
+                    resp = set_acoustics(self.sonar_ip, self.acoustics_enabled)
+                    self.get_logger().info(f"Updated acoustics_enabled: {resp.status_code}")
+                except Exception as e:
+                    self.get_logger().error(f"Failed to update acoustics_enabled: {e}")
+                    success = False
+            elif param.name == 'sonar_ip':
+                self.sonar_ip = param.value
+                self.configure_sonar()
+            elif param.name == 'multicast_group':
+                self.multicast_group = param.value
+            elif param.name == 'multicast_port':
+                self.multicast_port = param.value
+            elif param.name == 'filter_ip':
+                self.filter_ip = param.value
+        return SetParametersResult(successful=success)
+
+    def udp_listener(self):
+        multicast_group = self.multicast_group
+        port = self.multicast_port
+        filter_ip = self.filter_ip
+        buffer_size = 65535
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            sock.bind(('', port))
+            group = socket.inet_aton(multicast_group)
+            mreq = struct.pack('4sL', group, socket.INADDR_ANY)
+            sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+            self.get_logger().info(f"Listening for Sonar 3D-15 UDP packets on {multicast_group}:{port}...")
+            if filter_ip:
+                self.get_logger().info(f"Filtering packets from IP: {filter_ip}")
+            while rclpy.ok():
+                data, addr = sock.recvfrom(buffer_size)
+                if filter_ip and addr[0] != filter_ip:
+                    continue
+                self.get_logger().debug(f"Received {len(data)} bytes from {addr}")
+                # TODO: Process and publish data
+        except Exception as e:
+            self.get_logger().error(f"UDP listener error: {e}")
 
 def main(args=None):
     rclpy.init(args=args)
