@@ -4,6 +4,10 @@ __pycache__
 
 protoc/
 
+install/
+log/
+build/
+
 *.pgm
 *.xyz
 

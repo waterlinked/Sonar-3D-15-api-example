@@ -1,3 +1,32 @@
+# ROS2 Integration for Water Linked 3D Sonar Driver
+
+This section describes the ROS2 package for the Water Linked Sonar 3D-15.
+
+## Build Instructions
+
+```bash
+./build.sh
+```
+
+## Run Instructions
+
+```bash
+./run.sh
+```
+
+## Directory Structure
+- `proto/`: Protocol buffer definitions for the sonar
+- `scripts/`: Python scripts for interacting with the sonar
+
+## TODO
+- Add launch files
+
+-----
+
+# Original Python API Example (Legacy)
+
+<!-- ORIGINAL README CONTENT BELOW -->
+
 # Sonar-3D-15-api-example
 
 API example for reading and decoding the data from the Water Linked Sonar 3D-15 with Python

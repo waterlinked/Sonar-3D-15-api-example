@@ -183,13 +183,13 @@ def handle_packet(data: bytes, save: bool = False, save_path: str = ""):
     # Parse the RIP1 framing to get the Protobuf payload
     payload = parse_rip1_packet(data)
     if payload is None:
-        return  # skip invalid packets
+        return None  # skip invalid packets
 
     # Decode the Protobuf message
     result = decode_protobuf_packet(payload)
     if not result:
         # Did not get a valid message
-        return
+        return None
 
     msg_type, msg_obj = result
     #print(f"Received '{msg_type}' from {addr}")
@@ -213,7 +213,7 @@ def handle_packet(data: bytes, save: bool = False, save_path: str = ""):
             filename = f"sonar_image_{seq_id}.pgm"
             file_path = os.path.join(save_path, filename)
             saveImage(msg_obj, file_path)
-
+        return (msg_type, msg_obj)
     elif msg_type == "RangeImage":
         # Print out main fields
         print("  RangeImage data:")
@@ -241,6 +241,8 @@ def handle_packet(data: bytes, save: bool = False, save_path: str = ""):
         # We don't have a custom handler for other message types
         print(
             "  Received an unknown message type (not RangeImage or BitmapImage).")
+    # Always return None if not returning an object
+    return None
 
     print()  # Extra blank line for readability
 
