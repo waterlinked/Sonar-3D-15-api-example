@@ -23,7 +23,7 @@ import zlib
 import math
 
 # Generated Protobuf definitions for the Sonar 3D-15 protocol
-from sonar_3d_15_protocol_pb2 import (
+from .sonar_3d_15_protocol_pb2 import (
     Packet,
     BitmapImageGreyscale8,
     RangeImage
@@ -188,7 +188,7 @@ def handle_packet(data: bytes, save: bool = False, save_path: str = ""):
     # Decode the Protobuf message
     result = decode_protobuf_packet(payload)
     if not result:
-        # Did not get a valid message
+        print("Unknown or invalid Protobuf message received.")
         return
 
     msg_type, msg_obj = result
