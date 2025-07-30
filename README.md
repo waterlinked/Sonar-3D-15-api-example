@@ -4,6 +4,8 @@ API example for reading and decoding the data from the Water Linked Sonar 3D-15 
 
 # Setup
 
+The api was developed using Python 3.12.3.
+
 In your python environment you need to install the requirements.txt 
 ```consol
 pip install -r requirements.txt
