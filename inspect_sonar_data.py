@@ -23,7 +23,7 @@ import zlib
 import math
 
 # Generated Protobuf definitions for the Sonar 3D-15 protocol
-from sonar_3d_15_protocol_pb2 import (
+from .sonar_3d_15_protocol_pb2 import (
     Packet,
     BitmapImageGreyscale8,
     RangeImage
