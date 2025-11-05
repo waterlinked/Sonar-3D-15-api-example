@@ -21,6 +21,7 @@ import os
 import struct
 import zlib
 import math
+import cramjam
 
 # Generated Protobuf definitions for the Sonar 3D-15 protocol
 from .sonar_3d_15_protocol_pb2 import (
@@ -32,7 +33,7 @@ from .sonar_3d_15_protocol_pb2 import (
 def parse_rip1_packet(data: bytes):
     """
     Parse the RIP1 framing:
-      1. Verify the "RIP1" magic header
+      1. Verify the "RIP1" or "RIP2" magic header
       2. Verify total_length field matches the data size
       3. Check CRC
       4. Extract payload (proto data) from the packet
@@ -46,8 +47,8 @@ def parse_rip1_packet(data: bytes):
 
     # First 4 bytes are "RIP1"
     magic = data[:4]
-    if magic != b'RIP1':
-        print(f"Invalid magic: got {magic!r} instead of b'RIP1'.")
+    if magic != b'RIP1' and magic != b'RIP2':
+        print(f"Invalid magic: got {magic!r} instead of b'RIP1' or b'RIP2'.")
         return None
 
     # Next 4 bytes (little-endian) specify the total packet length
@@ -67,6 +68,13 @@ def parse_rip1_packet(data: bytes):
         print(
             f"CRC mismatch: expected 0x{crc_calculated:08x}, got 0x{crc_received:08x}.")
         return None
+
+    # Decompress if RIP2
+    if magic == b'RIP2':
+        payload = cramjam.snappy.decompress(payload)
+        if payload is None:
+            print("Decompression failed.")
+            return None
 
     return payload
 
