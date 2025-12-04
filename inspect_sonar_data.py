@@ -23,12 +23,15 @@ import zlib
 import math
 import cramjam
 
+SNAPPY_HEADER = b'\xff\x06\x00\x00sNaPpY'
+
 # Generated Protobuf definitions for the Sonar 3D-15 protocol
-from .sonar_3d_15_protocol_pb2 import (
+from sonar_3d_15_protocol_pb2 import (
     Packet,
     BitmapImageGreyscale8,
     RangeImage
 )
+
 
 def parse_rip1_packet(data: bytes):
     """
@@ -71,10 +74,17 @@ def parse_rip1_packet(data: bytes):
 
     # Decompress if RIP2
     if magic == b'RIP2':
-        payload = cramjam.snappy.decompress(payload)
-        if payload is None:
-            print("Decompression failed.")
-            return None
+        if payload.startswith(SNAPPY_HEADER):
+            decompress_fn = cramjam.snappy.decompress  # Snappy framed stream
+        else:
+            decompress_fn = cramjam.snappy.decompress_raw  # Snappy raw block
+        try:
+            payload = decompress_fn(payload)
+            payload = bytes(payload)
+        except Exception as exc:
+            print(f"Decompression failed: {exc}")
+            # Fall back to raw payload in case the data was already uncompressed
+            # (some RIP2 packets may be sent without compression).
 
     return payload
 
@@ -145,11 +155,11 @@ def rangeImageToXYZ(ri):
 
             voxel = {
                 "yaw": yaw_rad,  # yaw in radians
-                "pitch": pitch_rad, # pitch in radians
-                "distance": distance_meters, # distance in meters
-                "x": x, # x coordinate in meters
-                "y": y, # y coordinate in meters
-                "z": z # z coordinate in meters
+                "pitch": pitch_rad,  # pitch in radians
+                "distance": distance_meters,  # distance in meters
+                "x": x,  # x coordinate in meters
+                "y": y,  # y coordinate in meters
+                "z": z  # z coordinate in meters
             }
 
             voxels.append(voxel)
@@ -169,17 +179,19 @@ def saveXYZ(voxels, file_path):
             f.write(f"{x} {y} {z}\n")
     print(f"Saved {len(voxels)} voxels to {file_path}")
 
+
 def saveImage(bmpImg, file_path: str):
     """
     Save the BitmapImageGreyscale8 data to a file.
     The data is saved as a grayscale image in PGM format.
     """
     with open(file_path, 'wb') as f:
-        f.write(b'P2\n') # PGM format identifier
-        f.write(f"{bmpImg.width} {bmpImg.height}\n".encode()) # Write the width and height
+        f.write(b'P2\n')  # PGM format identifier
+        # Write the width and height
+        f.write(f"{bmpImg.width} {bmpImg.height}\n".encode())
         f.write(b'255\n')  # Max pixel value for PGM
         # Write pixel data
-        for y in range(bmpImg.height-1, 0, -1): # Flip the image vertically
+        for y in range(bmpImg.height-1, 0, -1):  # Flip the image vertically
             for x in range(bmpImg.width):
                 pixel_value = bmpImg.image_pixel_data[y * bmpImg.width + x]
                 f.write(f"{pixel_value} ".encode())
@@ -200,7 +212,7 @@ def handle_packet(data: bytes, save: bool = False, save_path: str = ""):
         return
 
     msg_type, msg_obj = result
-    #print(f"Received '{msg_type}' from {addr}")
+    # print(f"Received '{msg_type}' from {addr}")
 
     if msg_type == "BitmapImageGreyscale8":
         # Print out main fields
@@ -255,13 +267,8 @@ def handle_packet(data: bytes, save: bool = False, save_path: str = ""):
 
 def parse_file(filename, save: bool = False):
     """
-    Listen for Sonar 3D-15 UDP multicast packets on a specific port.
-    - Filters packets based on the known Sonar IP address.
-    - Parses the RIP1 framing.
-    - Decodes the Protobuf message.
-    - Prints relevant info (e.g. dimension, FoV, timestamp).
+    Parse a saved sonar capture file containing back-to-back RIP1/RIP2 packets.
     """
-    # Set up a UDP socket with multicast membership
 
     with open(filename, 'rb') as f:
         content = f.read()
@@ -273,12 +280,38 @@ def parse_file(filename, save: bool = False):
     if save:
         os.makedirs(save_path, exist_ok=True)
 
+    offset = 0
+    content_len = len(content)
+    while offset + 8 <= content_len:
+        magic = content[offset:offset + 4]
+        if magic not in (b'RIP1', b'RIP2'):
+            # Hunt for the next possible header to recover sync.
+            next_rip1 = content.find(b'RIP1', offset + 1)
+            next_rip2 = content.find(b'RIP2', offset + 1)
+            candidates = [p for p in (next_rip1, next_rip2) if p != -1]
+            if not candidates:
+                print(f"No RIP header found after offset {offset}. Stopping.")
+                break
+            offset = min(candidates)
+            continue
 
-    packets = content.split(b'RIP1')
-    for pkt in packets:
+        total_length = struct.unpack('<I', content[offset + 4:offset + 8])[0]
+        if total_length < 12:
+            # Minimum size: 4 magic + 4 length + 0 payload + 4 CRC
+            print(
+                f"Packet length too small at offset {offset}: {total_length} bytes.")
+            offset += 1
+            continue
 
-        # Parse the RIP1 framing to get the Protobuf payload
-        handle_packet(b'RIP1' + pkt, save=save, save_path=save_path)
+        packet_end = offset + total_length
+        if packet_end > content_len:
+            print(
+                f"Packet truncated at offset {offset}: needed {total_length} bytes, got {content_len - offset}.")
+            break
+
+        packet_bytes = content[offset:packet_end]
+        handle_packet(packet_bytes, save=save, save_path=save_path)
+        offset = packet_end
 
 
 if __name__ == "__main__":
