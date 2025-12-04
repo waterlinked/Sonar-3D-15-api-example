@@ -258,9 +258,8 @@ def handle_packet(data: bytes, save: bool = False, save_path: str = ""):
             saveXYZ(voxels, file_path)
 
     else:
-        # We don't have a custom handler for other message types
-        print(
-            "  Received an unknown message type (not RangeImage or BitmapImage).")
+        pass  # Unknown message type
+
 
     print()  # Extra blank line for readability
 
